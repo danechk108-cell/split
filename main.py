@@ -93,3 +93,63 @@ async def admin_set_balance(password: str, amount: str, user_id: int):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
+
+@app.get("/api/admin/{password}/set_payments/{amount}/{user_id}")
+async def admin_set_balance(password: str, amount: str, user_id: int):
+    # 1. Проверка пароля
+    if password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Доступ запрещен: неверный пароль")
+
+    conn = get_db_connection()
+    try:
+        # 2. Проверяем, существует ли пользователь
+        user = conn.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,)).fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+        # 3. Обновляем баланс (в базе он TEXT)
+        conn.execute(
+            "UPDATE users SET payments = ? WHERE user_id = ?",
+            (amount, user_id)
+        )
+        conn.commit()
+
+        return {
+            "status": "success",
+            "user_id": user_id,
+            "payments": amount
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.get("/api/admin/{password}/set_sysc_payments/{amount}/{user_id}")
+async def admin_set_balance(password: str, amount: str, user_id: int):
+    # 1. Проверка пароля
+    if password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Доступ запрещен: неверный пароль")
+
+    conn = get_db_connection()
+    try:
+        # 2. Проверяем, существует ли пользователь
+        user = conn.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,)).fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+        # 3. Обновляем баланс (в базе он TEXT)
+        conn.execute(
+            "UPDATE users SET successful_deals = ? WHERE user_id = ?",
+            (amount, user_id)
+        )
+        conn.commit()
+
+        return {
+            "status": "success",
+            "user_id": user_id,
+            "successful_deals": amount
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
