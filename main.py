@@ -26,8 +26,62 @@ def get_db_connection():
 class UserProfile(BaseModel):
     user_id: int
     balance: str
-    successful_deals: int
+    suscefylu_payments: int
     payments: int
+
+class BuyRequest(BaseModel):
+    user_id: int
+    price: float
+
+
+@app.post("/api/buy")
+async def buy_product(data: BuyRequest):
+    conn = get_db_connection()
+    try:
+        # 1. Получаем текущие данные юзера
+        user = conn.execute(
+            "SELECT balance, payments, suscefylu_payments FROM users WHERE user_id = ?",
+            (data.user_id,)
+        ).fetchone()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+        current_balance = float(user["balance"])
+        current_payments = int(user["payments"])
+        current_sysc = int(user["suscefylu_payments"])
+
+        # 2. Проверяем, хватает ли денег
+        if current_balance < data.price:
+            raise HTTPException(status_code=400, detail="Недостаточно средств на балансе")
+
+        # 3. Считаем новые значения
+        new_balance = current_balance - data.price
+        new_payments = current_payments + data.price
+        new_sysc = current_sysc + 1
+
+        # 4. Обновляем все 3 колонки сразу
+        conn.execute(
+            """
+            UPDATE users 
+            SET balance = ?, payments = ?, suscefylu_payments = ? 
+            WHERE user_id = ?
+            """,
+            (str(new_balance), int(new_payments), new_sysc, data.user_id)
+        )
+        conn.commit()
+
+        return {
+            "status": "success",
+            "new_balance": str(new_balance),
+            "total_spent": new_payments,
+            "total_deals": new_sysc
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 
 @app.get("/api/profile/{user_id}", response_model=UserProfile)
@@ -43,7 +97,7 @@ async def get_profile(user_id: int):
             return {
                 "user_id": user["user_id"],
                 "balance": user["balance"],
-                "successful_deals": user["suscefylu_payments"],
+                "suscefylu_payments": user["suscefylu_payments"],
                 "payments": user["payments"]
             }
         else:
@@ -139,7 +193,7 @@ async def admin_set_balance(password: str, amount: str, user_id: int):
 
         # 3. Обновляем баланс (в базе он TEXT)
         conn.execute(
-            "UPDATE users SET successful_deals = ? WHERE user_id = ?",
+            "UPDATE users SET suscefylu_payments = ? WHERE user_id = ?",
             (amount, user_id)
         )
         conn.commit()
@@ -147,7 +201,7 @@ async def admin_set_balance(password: str, amount: str, user_id: int):
         return {
             "status": "success",
             "user_id": user_id,
-            "successful_deals": amount
+            "suscefylu_payments": amount
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
