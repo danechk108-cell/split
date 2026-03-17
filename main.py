@@ -14,6 +14,7 @@ app.add_middleware(
 )
 
 DB_PATH = "bot_data.db"
+ADMIN_PASSWORD = "NEVERBOT"  # ЗАМЕНИ ЭТО
 
 
 def get_db_connection():
@@ -33,7 +34,6 @@ class UserProfile(BaseModel):
 async def get_profile(user_id: int):
     conn = get_db_connection()
     try:
-        # Ищем юзера по твоим 4 колонкам
         user = conn.execute(
             "SELECT user_id, balance, payments, suscefylu_payments FROM users WHERE user_id = ?",
             (user_id,)
@@ -47,22 +47,48 @@ async def get_profile(user_id: int):
                 "payments": user["payments"]
             }
         else:
-            # Создаем юзера строго с 4 значениями, как в БД
             conn.execute(
-                """
-                INSERT INTO users (user_id, balance, payments, suscefylu_payments)
-                VALUES (?, ?, ?, ?)
-                """,
+                "INSERT INTO users (user_id, balance, payments, suscefylu_payments) VALUES (?, ?, ?, ?)",
                 (user_id, "0.00", 0, 0)
             )
             conn.commit()
-
             return {
-                "user_id": user_id,
-                "balance": "0.00",
-                "successful_deals": 0,
-                "payments": 0
+                "user_id": user_id, "balance": "0.00", "successful_deals": 0, "payments": 0
             }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+# ═══════════════════════════════════════════════
+# ADMIN ENDPOINT: СМЕНА БАЛАНСА
+# ═══════════════════════════════════════════════
+@app.get("/api/admin/{password}/set_balance/{amount}/{user_id}")
+async def admin_set_balance(password: str, amount: str, user_id: int):
+    # 1. Проверка пароля
+    if password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Доступ запрещен: неверный пароль")
+
+    conn = get_db_connection()
+    try:
+        # 2. Проверяем, существует ли пользователь
+        user = conn.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,)).fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+        # 3. Обновляем баланс (в базе он TEXT)
+        conn.execute(
+            "UPDATE users SET balance = ? WHERE user_id = ?",
+            (amount, user_id)
+        )
+        conn.commit()
+
+        return {
+            "status": "success",
+            "user_id": user_id,
+            "new_balance": amount
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
