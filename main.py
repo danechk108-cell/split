@@ -106,9 +106,14 @@ async def get_profile(user_id: int):
                 (user_id, "0.00", 0, 0)
             )
             conn.commit()
+
             return {
-                "user_id": user_id, "balance": "0.00", "successful_deals": 0, "payments": 0
+                "user_id": user_id,
+                "balance": "0.00",
+                "suscefylu_payments": 0,
+                "payments": 0
             }
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
