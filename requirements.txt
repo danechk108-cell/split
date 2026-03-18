@@ -1,5 +1,6 @@
 fastapi
 uvicorn
 requests
-httpx
-python-telegram-bot
+python-telegram-bot==21.3
+httpx>=0.25.0
+python-telegram-bot[job-queue]
