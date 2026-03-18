@@ -47,28 +47,39 @@ async def buy_product(data: BuyRequest):
         if not user:
             raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-        current_balance = float(user["balance"])
+        # Используем .get() или проверяем на None, чтобы не прибавить к пустоте
+        current_balance = float(user["balance"] or 0)
+        current_payments = int(user["payments"] or 0)
+        current_sysc = int(user["suscefylu_payments"] or 0)
 
         if current_balance < data.price:
-            raise HTTPException(status_code=400, detail="Недостаточно средств на балансе")
+            raise HTTPException(status_code=400, detail="Недостаточно средств")
 
         new_balance = round(current_balance - data.price, 2)
-        new_payments = int(user["payments"]) + int(data.price)
-        new_sysc = int(user["suscefylu_payments"]) + 1
+        new_payments = current_payments + int(data.price)
+        new_sysc = current_sysc + 1 # Вот тут мы железно прибавляем 1
 
         conn.execute(
-            "UPDATE users SET balance = ?, payments = ?, suscefylu_payments = ? WHERE user_id = ?",
+            """
+            UPDATE users 
+            SET balance = ?, payments = ?, suscefylu_payments = ? 
+            WHERE user_id = ?
+            """,
             (str(new_balance), new_payments, new_sysc, data.user_id)
         )
         conn.commit()
 
+        # Проверим, что вернуло после сохранения (для отладки в логах Render)
+        print(f"User {data.user_id} updated: Balance {new_balance}, Sysc {new_sysc}")
+
         return {
             "status": "success",
             "new_balance": str(new_balance),
-            "suscefylu_payments": new_sysc,
-            "payments": new_payments
+            "payments": new_payments,
+            "suscefylu_payments": new_sysc
         }
     except Exception as e:
+        print(f"Error during buy: {e}") # Увидим ошибку в логах Render
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
