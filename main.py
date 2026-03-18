@@ -65,8 +65,8 @@ async def buy_product(data: BuyRequest):
         return {
             "status": "success",
             "new_balance": str(new_balance),
-            "suscefylu_payments": new_payments,
-            "payments": new_sysc
+            "suscefylu_payments": new_sysc,
+            "payments": new_payments
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
