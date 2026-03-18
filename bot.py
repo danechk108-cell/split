@@ -573,8 +573,6 @@ def main():
 
     # ── Start polling ──
     logger.info("Bot starting...")
-    app.job_queue.run_repeating(keep_alive_ping, interval=600, first=10)
-    logger.info("Keep-alive job scheduled every 10 minutes")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
